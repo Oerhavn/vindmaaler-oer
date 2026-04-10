@@ -1,1 +1,388 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vindmåler - Live Data</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #0c1445 0%, #1a237e 50%, #0d47a1 100%);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #90caf9;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .update-time {
+            text-align: center;
+            color: #64b5f6;
+            margin-bottom: 20px;
+            font-size: 0.9em;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        @media (max-width: 600px) {
+            .grid { grid-template-columns: 1fr; }
+            h1 { font-size: 1.8em; }
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .card-wide {
+            grid-column: 1 / -1;
+        }
+
+        .card .label {
+            font-size: 0.9em;
+            color: #90caf9;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+        }
+
+        .card .value {
+            font-size: 3em;
+            font-weight: bold;
+        }
+
+        .card .unit {
+            font-size: 0.9em;
+            color: #bbdefb;
+            margin-top: 5px;
+        }
+
+        .card .secondary {
+            font-size: 1.5em;
+            color: #e3f2fd;
+            margin-top: 5px;
+        }
+
+        .wind-icon {
+            font-size: 4em;
+            margin-bottom: 10px;
+        }
+
+        .beaufort {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 5px 15px;
+            border-radius: 20px;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+
+        .gust { color: #ff8a80; }
+        .gust .value { color: #ff5252; }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 10px;
+        }
+
+        .stat-item .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        .stat-item .stat-label {
+            font-size: 0.8em;
+            color: #90caf9;
+        }
+
+        .gps-card {
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid rgba(76, 175, 80, 0.3);
+        }
+
+        .battery-card {
+            background: rgba(255, 193, 7, 0.2);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+        }
+
+        .battery-low {
+            background: rgba(244, 67, 54, 0.2);
+            border: 1px solid rgba(244, 67, 54, 0.3);
+        }
+
+        .chart-container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .chart-container iframe {
+            width: 100%;
+            height: 250px;
+            border: none;
+            border-radius: 10px;
+        }
+
+        .footer {
+            text-align: center;
+            color: #64b5f6;
+            margin-top: 30px;
+            font-size: 0.85em;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 1.2em;
+            color: #90caf9;
+        }
+
+        .dot-pulse {
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌬️ Vindmåler</h1>
+        <p class="subtitle">Live vinddata</p>
+        <p class="update-time" id="updateTime">Henter data...</p>
+
+        
+        <div class="grid">
+            <div class="card">
+                <div class="wind-icon" id="windArrow">🌀</div>
+                <div class="label">Aktuel vind</div>
+                <div class="value" id="windMs">--</div>
+                <div class="unit">m/s</div>
+                <div class="secondary" id="windKnob">-- knob</div>
+                <div class="beaufort" id="beaufort">Beaufort --</div>
+            </div>
+
+            <div class="card gust">
+                <div class="wind-icon">💨</div>
+                <div class="label">Vindstød</div>
+                <div class="value" id="gustMs">--</div>
+                <div class="unit">m/s</div>
+                <div class="secondary" id="gustKnob">-- knob</div>
+            </div>
+        </div>
+
+        
+        <div class="grid">
+            <div class="card">
+                <div class="label">15-min gennemsnit</div>
+                <div class="value" id="avg15">--</div>
+                <div class="unit">m/s</div>
+            </div>
+
+            <div class="card">
+                <div class="label">Dags gennemsnit</div>
+                <div class="value" id="dayAvg">--</div>
+                <div class="unit">m/s</div>
+            </div>
+        </div>
+
+        
+        <div class="grid">
+            <div class="card gust">
+                <div class="label">Dags max vindstød</div>
+                <div class="value" id="dayGust">--</div>
+                <div class="unit">m/s</div>
+            </div>
+
+            <div class="card battery-card" id="batteryCard">
+                <div class="label">🔋 Batteri</div>
+                <div class="value" id="battery">--</div>
+                <div class="unit">volt</div>
+                <div class="secondary" id="batteryPct">--%</div>
+            </div>
+        </div>
+
+        
+        <div class="grid">
+            <div class="card card-wide gps-card">
+                <div class="label">📍 Position</div>
+                <div class="secondary" id="gpsCoords">Ingen GPS data</div>
+            </div>
+        </div>
+
+        
+        <div class="chart-container">
+            <div class="label" style="text-align:center; margin-bottom:10px; color:#90caf9;">
+                📈 Vindhastighed (sidste 24 timer)
+            </div>
+            <iframe src="https://thingspeak.com/channels/3336113/charts/1?bgcolor=%231a237e&color=%2364b5f6&dynamic=true&results=288&type=line&width=auto&height=250&yaxis=m/s"></iframe>
+        </div>
+
+        <div class="chart-container">
+            <div class="label" style="text-align:center; margin-bottom:10px; color:#90caf9;">
+                💨 Vindstød (sidste 24 timer)
+            </div>
+            <iframe src="https://thingspeak.com/channels/3336113/charts/3?bgcolor=%231a237e&color=%23ff5252&dynamic=true&results=288&type=line&width=auto&height=250&yaxis=m/s"></iframe>
+        </div>
+
+        <div class="chart-container">
+            <div class="label" style="text-align:center; margin-bottom:10px; color:#90caf9;">
+                🔋 Batteri (sidste 24 timer)
+            </div>
+            <iframe src="https://thingspeak.com/channels/3336113/charts/8?bgcolor=%231a237e&color=%23ffca28&dynamic=true&results=288&type=line&width=auto&height=250&yaxis=Volt"></iframe>
+        </div>
+
+        <p class="footer">
+            Autonom vindmåler · LILYGO T-SIM7000G · Opdaterer hvert 5. minut
+        </p>
+    </div>
+
+    <script>
+        const CHANNEL_ID = '3336113';
+        const READ_API_KEY = 'TNS4RWDNQGFUP9KF';
+
+        function fetchData() {
+            const url = `https://api.thingspeak.com/channels/${CHANNEL_ID}/feeds/last.json?api_key=${READ_API_KEY}`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    // Vinddata
+                    const windMs = parseFloat(data.field1) || 0;
+                    const windKnob = parseFloat(data.field2) || 0;
+                    const gustMs = parseFloat(data.field3) || 0;
+                    const gustKnob = parseFloat(data.field4) || 0;
+                    const avg15 = parseFloat(data.field5) || 0;
+                    const dayAvg = parseFloat(data.field6) || 0;
+                    const dayGust = parseFloat(data.field7) || 0;
+                    const battery = parseFloat(data.field8) || 0;
+
+                    // Opdater felter
+                    document.getElementById('windMs').textContent = windMs.toFixed(1);
+                    document.getElementById('windKnob').textContent = windKnob.toFixed(1) + ' knob';
+                    document.getElementById('gustMs').textContent = gustMs.toFixed(1);
+                    document.getElementById('gustKnob').textContent = gustKnob.toFixed(1) + ' knob';
+                    document.getElementById('avg15').textContent = avg15.toFixed(1);
+                    document.getElementById('dayAvg').textContent = dayAvg.toFixed(1);
+                    document.getElementById('dayGust').textContent = dayGust.toFixed(1);
+                    document.getElementById('battery').textContent = battery.toFixed(2);
+
+                    // Beaufort
+                    const bft = msToBeaufort(windMs);
+                    document.getElementById('beaufort').textContent =
+                        'Beaufort ' + bft.number + ' · ' + bft.name;
+
+                    // Vind-ikon animation
+                    const arrow = document.getElementById('windArrow');
+                    if (windMs < 0.3) arrow.textContent = '🌀';
+                    else if (windMs < 5.5) arrow.textContent = '🍃';
+                    else if (windMs < 10.8) arrow.textContent = '🌬️';
+                    else if (windMs < 17.2) arrow.textContent = '💨';
+                    else arrow.textContent = '🌪️';
+
+                    // Batteri procent
+                    const batPct = Math.min(100, Math.max(0,
+                        Math.round((battery - 3.3) / (4.2 - 3.3) * 100)));
+                    document.getElementById('batteryPct').textContent = batPct + '%';
+
+                    // Batteri farve
+                    const batCard = document.getElementById('batteryCard');
+                    if (batPct < 20) {
+                        batCard.className = 'card battery-low';
+                    } else {
+                        batCard.className = 'card battery-card';
+                    }
+
+                    // GPS fra status felt
+                    if (data.status && data.status.startsWith('GPS:')) {
+                        const coords = data.status.replace('GPS:', '');
+                        document.getElementById('gpsCoords').textContent = '📍 ' + coords;
+                        document.getElementById('gpsCoords').innerHTML =
+                            '<a href="https://www.google.com/maps?q=' + coords +
+                            '" target="_blank" style="color:#81c784;text-decoration:none;">' +
+                            '📍 ' + coords + ' (åbn kort)</a>';
+                    }
+
+                    // Opdateringstidspunkt
+                    const time = new Date(data.created_at);
+                    document.getElementById('updateTime').textContent =
+                        'Sidst opdateret: ' + time.toLocaleString('da-DK');
+                })
+                .catch(error => {
+                    console.error('Fejl:', error);
+                    document.getElementById('updateTime').textContent =
+                        'Kunne ikke hente data - prøver igen...';
+                });
+        }
+
+        function msToBeaufort(ms) {
+            const scale = [
+                {max: 0.3, number: 0, name: 'Stille'},
+                {max: 1.6, number: 1, name: 'Næsten stille'},
+                {max: 3.4, number: 2, name: 'Svag vind'},
+                {max: 5.5, number: 3, name: 'Let vind'},
+                {max: 8.0, number: 4, name: 'Jævn vind'},
+                {max: 10.8, number: 5, name: 'Frisk vind'},
+                {max: 13.9, number: 6, name: 'Hård vind'},
+                {max: 17.2, number: 7, name: 'Stiv kuling'},
+                {max: 20.8, number: 8, name: 'Hård kuling'},
+                {max: 24.5, number: 9, name: 'Stormende kuling'},
+                {max: 28.5, number: 10, name: 'Storm'},
+                {max: 32.7, number: 11, name: 'Stærk storm'},
+                {max: 99, number: 12, name: 'Orkan'}
+            ];
+            for (let s of scale) {
+                if (ms < s.max) return s;
+            }
+            return scale[scale.length - 1];
+        }
+
+        // Hent data med det samme
+        fetchData();
+
+        // Opdater hvert 30. sekund
+        setInterval(fetchData, 30000);
+    </script>
+</body>
+</html>
